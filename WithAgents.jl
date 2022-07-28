@@ -2,7 +2,6 @@ module WithAgents
 
 using Agents
 using StaticArrays
-using InteractiveDynamics, GLMakie
 import CellListMap
 
 # Structure that contains the data to use cell list map (serial version)
@@ -13,10 +12,10 @@ end
 
 @agent Particle ContinuousAgent{2} begin
     r::Float64 # radius
-    k::Float64 # repulsion force constant 
+    k::Float64 # repulsion force constant
     mass::Float64
 end
-Particle(id, pos, vel) = Particle(id, ntuple(i -> pos[i], 2), ntuple(i -> vel[i], 2), 10.0, 1.0, 1.0)
+Particle(id, pos, vel) = Particle(id, Tuple(pos), Tuple(vel), 10.0, 1.0, 1.0)
 
 Base.@kwdef struct Properties{T,CL}
     dt::Float64 = 0.01
@@ -47,7 +46,7 @@ function initialize_model(;
     # cutoff is twice the maximum radius among particles
     cutoff = maximum(2 * p.r for p in particles)
 
-    # Define cell list structure 
+    # Define cell list structure
     box = CellListMap.Box(sides, cutoff)
     cl = CellListMap.CellList(positions, box; parallel=false)
     cl_data = CellListMapData(box, cl)
@@ -89,8 +88,8 @@ function agent_step!(agent, model::ABM)
     v_new = v + f * dt
     model.positions[id] = x_new
     model.velocities[id] = v_new
-    agent.pos = ntuple(i -> x_new[i], 2)
-    agent.vel = ntuple(i -> v_new[i], 2)
+    agent.pos = Tuple(x_new)
+    agent.vel = Tuple(v_new)
 end
 
 #
@@ -142,18 +141,8 @@ end
 
 function simulate(; nsteps=10_000)
     model = initialize_model()
-    run!(
-        model, agent_step!, model_step!, nsteps; agents_first=false,
-        showprogress=true
-    )
-end
-
-function video(; nsteps=1000)
-    model = initialize_model()
-    abmvideo(
-        "test.mp4", model, agent_step!, model_step!;
-        framerate=50, spf=1, frames=nsteps, agents_first=false,
-        title="Particles"
+    Agents.step!(
+        model, agent_step!, model_step!, nsteps, false,
     )
 end
 
