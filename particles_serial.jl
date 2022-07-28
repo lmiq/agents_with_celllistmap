@@ -32,8 +32,8 @@ function initialize_model(;
     dt=0.01
 )
     # initial positions and velocities
-    positions = [ sides .* rand(SVector{2,Float64}) for _ in 1:n ]
-    velocities = [ -1e-3 .+ 2.e-3 .* rand(SVector{2,Float64}) for _ in 1:n ]
+    positions = [sides .* rand(SVector{2,Float64}) for _ in 1:n]
+    velocities = [-1e-3 .+ 2.e-3 .* rand(SVector{2,Float64}) for _ in 1:n]
 
     # Space and agents
     space2d = ContinuousSpace(ntuple(i -> sides[i], 2); periodic=true)
@@ -47,7 +47,7 @@ function initialize_model(;
 
     # Define cell list structure 
     box = CellListMap.Box(sides, cutoff)
-    cl = CellListMap.CellList(positions, box)
+    cl = CellListMap.CellList(positions, box, parallel=false)
     cl_data = CellListMapData(box, cl)
 
     # define the model
@@ -124,6 +124,7 @@ function model_step!(model::ABM)
         model.positions, # current positions
         model.cl_data.box,
         model.cl_data.cell_list,
+        parallel=false,
     )
     # reset forces at this step, and auxiliary threaded forces array
     for i in eachindex(model.forces)
@@ -134,7 +135,8 @@ function model_step!(model::ABM)
         (x, y, i, j, d2, forces) -> calc_forces!(x, y, i, j, d2, forces, model),
         model.forces,
         model.cl_data.box,
-        model.cl_data.cell_list
+        model.cl_data.cell_list,
+        parallel=false,
     )
 end
 
