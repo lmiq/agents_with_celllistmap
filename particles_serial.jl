@@ -143,7 +143,7 @@ end
 function simulate()
     model = initialize_model()
     run!(
-        model, agent_step!, model_step!, 100; agents_first=false,
+        model, agent_step!, model_step!, 1000; agents_first=false,
         showprogress=true
     )
 end
