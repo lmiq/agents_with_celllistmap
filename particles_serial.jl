@@ -47,7 +47,7 @@ function initialize_model(;
 
     # Define cell list structure 
     box = CellListMap.Box(sides, cutoff)
-    cl = CellListMap.CellList(positions, box, parallel=false)
+    cl = CellListMap.CellList(positions, box; parallel=false)
     cl_data = CellListMapData(box, cl)
 
     # define the model
@@ -123,8 +123,8 @@ function model_step!(model::ABM)
     model.cl_data.cell_list = CellListMap.UpdateCellList!(
         model.positions, # current positions
         model.cl_data.box,
-        model.cl_data.cell_list,
-        parallel=false,
+        model.cl_data.cell_list;
+        parallel=false
     )
     # reset forces at this step, and auxiliary threaded forces array
     for i in eachindex(model.forces)
@@ -135,12 +135,12 @@ function model_step!(model::ABM)
         (x, y, i, j, d2, forces) -> calc_forces!(x, y, i, j, d2, forces, model),
         model.forces,
         model.cl_data.box,
-        model.cl_data.cell_list,
-        parallel=false,
+        model.cl_data.cell_list;
+        parallel=false
     )
 end
 
-function simulate(;nsteps=1000)
+function simulate(; nsteps=1000)
     model = initialize_model()
     run!(
         model, agent_step!, model_step!, nsteps; agents_first=false,
@@ -148,7 +148,7 @@ function simulate(;nsteps=1000)
     )
 end
 
-function video(;nsteps=1000)
+function video(; nsteps=1000)
     model = initialize_model()
     abmvideo(
         "test.mp4", model, agent_step!, model_step!;
