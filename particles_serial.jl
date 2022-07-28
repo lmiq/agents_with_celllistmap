@@ -140,19 +140,19 @@ function model_step!(model::ABM)
     )
 end
 
-function simulate()
+function simulate(;nsteps=1000)
     model = initialize_model()
     run!(
-        model, agent_step!, model_step!, 1000; agents_first=false,
+        model, agent_step!, model_step!, nsteps; agents_first=false,
         showprogress=true
     )
 end
 
-function video()
+function video(;nsteps=1000)
     model = initialize_model()
     abmvideo(
         "test.mp4", model, agent_step!, model_step!;
-        framerate=200, spf=20, frames=1000,
+        framerate=50, spf=1, frames=nsteps, agents_first=false,
         title="Particles"
     )
 end
