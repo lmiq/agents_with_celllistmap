@@ -14,7 +14,7 @@ end
     k::Float64 # repulsion force constant 
     mass::Float64
 end
-Particle(id, pos, vel) = Particle(id, ntuple(i -> pos[i], 2), ntuple(i -> vel[i], 2), 1.0, 1.0, 100.0)
+Particle(id, pos, vel) = Particle(id, ntuple(i -> pos[i], 2), ntuple(i -> vel[i], 2), 10.0, 1.0, 1.0)
 
 Base.@kwdef struct Properties{T,CL}
     dt::Float64 = 0.01
@@ -27,13 +27,13 @@ Base.@kwdef struct Properties{T,CL}
 end
 
 function initialize_model(;
-    n=10_000,
-    sides=SVector{2,Float64}(100.0, 100.0),
+    n=1000,
+    sides=SVector{2,Float64}(1000.0, 1000.0),
     dt=0.01
 )
     # initial positions and velocities
     positions = [sides .* rand(SVector{2,Float64}) for _ in 1:n]
-    velocities = [-1e-3 .+ 2.e-3 .* rand(SVector{2,Float64}) for _ in 1:n]
+    velocities = [-50 .+ 100 .* rand(SVector{2,Float64}) for _ in 1:n]
 
     # Space and agents
     space2d = ContinuousSpace(ntuple(i -> sides[i], 2); periodic=true)
@@ -95,7 +95,7 @@ end
 # This function udpates the model.forces array for each interacting pair
 # The potential is a simple bounded harmonic interaction:
 #
-# U(r) = (ki*kj)*(r - (ri+rj))^2 for r ≤ (ri+rj)
+# U(r) = (ki*kj)*(r^2 - (ri+rj)^2)^2 for r ≤ (ri+rj)
 # U(r) = 0.0 for r > (ri+rj)
 #
 # where ri and rj are the radii of the two agents, and ki and kj are the
@@ -108,8 +108,8 @@ function calc_forces!(x, y, i, j, d2, forces, model)
     if d ≤ (ri + rj)
         ki = model.agents[i].k
         kj = model.agents[j].k
-        dr = x - y
-        fij = 2 * (ki * kj) * (d - (ri + rj)) * dr / d
+        dr = y - x
+        fij = 2 * (ki * kj) * (d2 - (ri + rj)^2) * (dr/d)
         forces[i] += fij
         forces[j] -= fij
     end
