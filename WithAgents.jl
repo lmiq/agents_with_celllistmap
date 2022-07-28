@@ -141,13 +141,13 @@ function model_step!(model::ABM)
     return
 end
 
-function simulate(; nsteps=10_000)
+function simulate(; nsteps=1_000)
     model = initialize_model()
     Agents.step!(
         model, agent_step!, model_step!, nsteps, false,
     )
 end
-function simulate(model = initialize_model(); nsteps=10_000)
+function simulate(model = initialize_model(); nsteps=1_000)
     Agents.step!(
         model, agent_step!, model_step!, nsteps, false,
     )

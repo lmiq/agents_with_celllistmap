@@ -117,7 +117,7 @@ function step!(system::System)
     end
 end
 
-function simulate(; n=1000, nsteps=10_000, parallel=false)
+function simulate(; n=1000, nsteps=1_000, parallel=false)
     system = initialize_system(n=n, parallel=parallel)
     for _ in 1:nsteps
         step!(system)
@@ -125,7 +125,7 @@ function simulate(; n=1000, nsteps=10_000, parallel=false)
     return system
 end
 
-function simulate(system = initialize_system(n=1000, parallel=false); nsteps=10_000)
+function simulate(system = initialize_system(n=1000, parallel=false); nsteps=1_000)
     for _ in 1:nsteps
         step!(system)
     end
