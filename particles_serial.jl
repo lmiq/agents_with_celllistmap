@@ -93,7 +93,7 @@ end
 
 #
 # This function udpates the model.forces array for each interacting pair
-# The potential is a simple bounded harmonic interaction:
+# The potential is a smooth short-ranged interaction:
 #
 # U(r) = (ki*kj)*(r^2 - (ri+rj)^2)^2 for r ≤ (ri+rj)
 # U(r) = 0.0 for r > (ri+rj)
