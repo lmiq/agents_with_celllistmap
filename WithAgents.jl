@@ -68,7 +68,7 @@ function initialize_model(;
 
     # create active rods
     for id in 1:n
-        add_agent!(particles[id], model)
+        add_agent_pos!(particles[id], model)
     end
 
     return model
@@ -90,6 +90,7 @@ function agent_step!(agent, model::ABM)
     model.velocities[id] = v_new
     agent.pos = Tuple(x_new)
     agent.vel = Tuple(v_new)
+    return
 end
 
 #
@@ -137,6 +138,7 @@ function model_step!(model::ABM)
         model.cl_data.cell_list;
         parallel=false
     )
+    return
 end
 
 function simulate(; nsteps=10_000)
