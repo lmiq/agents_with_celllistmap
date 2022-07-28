@@ -2,11 +2,14 @@
 
 Run with:
 ```julia
-julia> include("./particles_serial.jl")
+julia> include("./Particles.jl")
 
-julia> simulate() # for a simulation
+julia> using .Particles
 
-julia> video() # to create the video
+julia> WithAgents.simulate() # simulate using Agents.jl
+
+julia> WithAgents.video() # to create the video using Agents.jl
+
+julia> NoAgents.simulate() # simulate without Agents.jl
 
 ```
-

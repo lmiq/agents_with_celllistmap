@@ -1,3 +1,5 @@
+module NoAgents
+
 using StaticArrays
 import CellListMap
 
@@ -18,12 +20,14 @@ Base.@kwdef mutable struct System{T,B,C}
     cutoff::Float64
     box::B
     cell_list::C
+    parallel::Bool = false
 end
 
 function initialize_system(;
     n=1000,
     sides=SVector{2,Float64}(1000.0, 1000.0),
-    dt=0.01
+    dt=0.01,
+    parallel=false
 )
     # initial positions and velocities
     positions = [sides .* rand(SVector{2,Float64}) for _ in 1:n]
@@ -38,7 +42,7 @@ function initialize_system(;
 
     # Define cell list structure 
     box = CellListMap.Box(sides, cutoff)
-    cl = CellListMap.CellList(positions, box; parallel=false)
+    cl = CellListMap.CellList(positions, box; parallel=parallel)
 
     # define the model
     system = System(
@@ -51,6 +55,7 @@ function initialize_system(;
         forces=forces,
         box=box,
         cell_list=cl,
+        parallel=parallel
     )
 
     return system
@@ -87,7 +92,7 @@ function step!(system::System)
         system.positions, # current positions
         system.box,
         system.cell_list;
-        parallel=false
+        parallel=system.parallel
     )
     # reset forces at this step, and auxiliary threaded forces array
     fill!(system.forces, zeros(eltype(system.forces)))
@@ -97,14 +102,14 @@ function step!(system::System)
         system.forces,
         system.box,
         system.cell_list;
-        parallel=false
+        parallel=system.parallel
     )
     # Update positions and velocities
     dt = system.dt
     for i in eachindex(system.particles)
         p = system.particles[i]
         x = system.positions[i]
-        v = system.positions[i]
+        v = system.velocities[i]
         f = system.forces[i]
         a = f / p.mass
         system.positions[i] = x + v * dt + (a / 2) * dt^2
@@ -112,10 +117,12 @@ function step!(system::System)
     end
 end
 
-function simulate(; nsteps=1000)
+function simulate(; nsteps=10_000, parallel=false)
     system = initialize_system()
     for _ in 1:nsteps
         step!(system)
     end
     return system
 end
+
+end # module NoAgents

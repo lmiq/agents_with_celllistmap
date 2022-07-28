@@ -1,3 +1,5 @@
+module WithAgents
+
 using Agents
 using StaticArrays
 using InteractiveDynamics, GLMakie
@@ -140,7 +142,7 @@ function model_step!(model::ABM)
     )
 end
 
-function simulate(; nsteps=1000)
+function simulate(; nsteps=10_000)
     model = initialize_model()
     run!(
         model, agent_step!, model_step!, nsteps; agents_first=false,
@@ -156,6 +158,8 @@ function video(; nsteps=1000)
         title="Particles"
     )
 end
+
+end # module WithAgents
 
 
 
