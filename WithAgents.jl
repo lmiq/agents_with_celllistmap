@@ -129,9 +129,7 @@ function model_step!(model::ABM)
         parallel=false
     )
     # reset forces at this step, and auxiliary threaded forces array
-    for i in eachindex(model.forces)
-        model.forces[i] = zero(eltype(model.forces))
-    end
+    fill!(model.forces, zeros(eltype(model.forces)))
     # calculate pairwise forces at this step
     CellListMap.map_pairwise!(
         (x, y, i, j, d2, forces) -> calc_forces!(x, y, i, j, d2, forces, model),
