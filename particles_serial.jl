@@ -12,9 +12,9 @@ end
 @agent Particle ContinuousAgent{2} begin
     r::Float64 # radius
     k::Float64 # repulsion force constant 
-    mass::Float64 
+    mass::Float64
 end
-Particle(id,pos,vel) = Particle(id, ntuple(i->pos[i],2), ntuple(i->vel[i],2), 1.0, 1.0, 1.0)
+Particle(id, pos, vel) = Particle(id, ntuple(i -> pos[i], 2), ntuple(i -> vel[i], 2), 1.0, 1.0, 1.0)
 
 Base.@kwdef struct Properties{T,CL}
     dt::Float64 = 0.01
@@ -29,21 +29,21 @@ end
 function initialize_model(;
     n=10_000,
     sides=[100.0, 100.0],
-    dt = 0.01,
+    dt=0.01
 )
     # initial positions and velocities
     positions = rand(SVector{2,Float64}, n)
     velocities = 1e-3 .* rand(SVector{2,Float64}, n)
 
     # Space and agents
-    space2d = ContinuousSpace(ntuple(i->sides[i], 2); periodic = true)
+    space2d = ContinuousSpace(ntuple(i -> sides[i], 2); periodic=true)
     particles = [Particle(id, positions[id], velocities[id]) for id in 1:n]
 
     # initialize array of forces
     forces = similar(positions)
 
     # cutoff is twice the maximum radius among particles
-    cutoff = maximum(2*p.r for p in particles)
+    cutoff = maximum(2 * p.r for p in particles)
 
     # Define cell list structure 
     box = CellListMap.Box(sides, cutoff)
@@ -54,6 +54,7 @@ function initialize_model(;
     properties = Properties(
         dt=dt,
         n=n,
+        cutoff=cutoff,
         positions=positions,
         velocities=velocities,
         forces=forces,
@@ -66,7 +67,7 @@ function initialize_model(;
 
     # create active rods
     for id in 1:n
-        add_agent!(particles[id])
+        add_agent!(particles[id], model)
     end
 
     return model
@@ -80,12 +81,13 @@ function agent_step!(agent, model::ABM)
     x = model.positions[id]
     v = model.velocities[id]
     f = model.forces[id]
-    x_new = x + v * model.dt + (f / 2) * dt^2
+    dt = model.properties.dt
+    x_new = x + v * dt + (f / 2) * dt^2
     v_new = v + f * dt
     model.positions[id] = x_new
     model.velocities[id] = v_new
-    agent.pos = ntuple(i->x_new[i],2)
-    agent.vel = ntuple(i->v_new[i],2)
+    agent.pos = ntuple(i -> x_new[i], 2)
+    agent.vel = ntuple(i -> v_new[i], 2)
 end
 
 #
@@ -99,12 +101,12 @@ end
 # potential energy constants.
 #
 function calc_forces!(x, y, i, j, d2, forces, model)
-    ri = model.agent[i].r
-    rj = model.agent[j].r
+    ri = model.agents[i].r
+    rj = model.agents[j].r
     d = sqrt(d2)
     if d ≤ (ri + rj)
-        ki = model.agent[i].k
-        kj = model.agent[j].k
+        ki = model.agents[i].k
+        kj = model.agents[j].k
         dr = x - y
         fij = 2 * (ki * kj) * (d - (ri + rj)) * dr / d
         forces[i] += fij
@@ -120,17 +122,37 @@ function model_step!(model::ABM)
     model.cl_data.cell_list = CellListMap.UpdateCellList!(
         model.positions, # current positions
         model.cl_data.box,
-        model.cl_dat.cell_list,
+        model.cl_data.cell_list,
     )
     # reset forces at this step, and auxiliary threaded forces array
-    model.forces .= zero(eltype(forces))
+    for i in eachindex(model.forces)
+        model.forces[i] = zero(eltype(model.forces))
+    end
     # calculate pairwise forces at this step
     CellListMap.map_pairwise!(
         (x, y, i, j, d2, forces) -> calc_forces!(x, y, i, j, d2, forces, model),
         model.forces,
-        model.box,
-        model.cell_list
+        model.cl_data.box,
+        model.cl_data.cell_list
     )
 end
+
+function simulate()
+    model = initialize_model()
+    run!(
+        model, agent_step!, model_step!, 100; agents_first=false,
+        showprogress=true
+    )
+end
+
+function video()
+    model = initialize_model()
+    abmvideo(
+        "test.mp4", model, agent_step!, model_step!;
+        framerate=200, spf=20, frames=1000,
+        title="Particles"
+    )
+end
+
 
 
