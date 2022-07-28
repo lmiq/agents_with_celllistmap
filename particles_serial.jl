@@ -28,12 +28,12 @@ end
 
 function initialize_model(;
     n=10_000,
-    sides=[100.0, 100.0],
+    sides=SVector{2,Float64}(100.0, 100.0),
     dt=0.01
 )
     # initial positions and velocities
-    positions = rand(SVector{2,Float64}, n)
-    velocities = -1e-6 .+ 1.e-6 * rand(SVector{2,Float64}, n)
+    positions = [ sides .* rand(SVector{2,Float64}) for _ in 1:n ]
+    velocities = [ -1e-3 .+ 2.e-3 .* rand(SVector{2,Float64}) for _ in 1:n ]
 
     # Space and agents
     space2d = ContinuousSpace(ntuple(i -> sides[i], 2); periodic=true)
@@ -82,7 +82,8 @@ function agent_step!(agent, model::ABM)
     v = model.velocities[id]
     f = model.forces[id]
     dt = model.properties.dt
-    x_new = x + v * dt + (f / 2) * dt^2
+    a = f / model.agents[id].mass
+    x_new = x + v * dt + (a / 2) * dt^2
     v_new = v + f * dt
     model.positions[id] = x_new
     model.velocities[id] = v_new
