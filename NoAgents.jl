@@ -5,7 +5,7 @@ import CellListMap
 
 struct Particle
     r::Float64 # radius
-    k::Float64 # repulsion force constant 
+    k::Float64 # repulsion force constant
     mass::Float64
 end
 Particle() = Particle(10.0, 1.0, 1.0)
@@ -40,7 +40,7 @@ function initialize_system(;
     # cutoff is twice the maximum radius among particles
     cutoff = maximum(2 * p.r for p in particles)
 
-    # Define cell list structure 
+    # Define cell list structure
     box = CellListMap.Box(sides, cutoff)
     cl = CellListMap.CellList(positions, box; parallel=parallel)
 
@@ -119,6 +119,13 @@ end
 
 function simulate(; n=1000, nsteps=10_000, parallel=false)
     system = initialize_system(n=n, parallel=parallel)
+    for _ in 1:nsteps
+        step!(system)
+    end
+    return system
+end
+
+function simulate(system = initialize_system(n=1000, parallel=false); nsteps=10_000)
     for _ in 1:nsteps
         step!(system)
     end

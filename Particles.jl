@@ -13,3 +13,13 @@ WithAgents.simulate(); # compile
 println("No agents")
 NoAgents.simulate(); # compile
 @time NoAgents.simulate();
+
+println("With agents, only stepping")
+model = WithAgents.initialize_model()
+WithAgents.simulate(model); # compile
+@time WithAgents.simulate(model);
+
+println("No agents, only stepping")
+system = NoAgents.initialize_system()
+NoAgents.simulate(system); # compile
+@time NoAgents.simulate(system);

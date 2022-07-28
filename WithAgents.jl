@@ -147,6 +147,11 @@ function simulate(; nsteps=10_000)
         model, agent_step!, model_step!, nsteps, false,
     )
 end
+function simulate(model = initialize_model(); nsteps=10_000)
+    Agents.step!(
+        model, agent_step!, model_step!, nsteps, false,
+    )
+end
 
 end # module WithAgents
 
