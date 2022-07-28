@@ -40,7 +40,7 @@ function initialize_model(;
     particles = [Particle(id, positions[id], velocities[id]) for id in 1:n]
 
     # initialize array of forces
-    forces = similar(positions)
+    forces = zeros(SVector{2,Float64}, n)
 
     # cutoff is twice the maximum radius among particles
     cutoff = maximum(2 * p.r for p in particles)
