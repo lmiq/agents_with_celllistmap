@@ -14,7 +14,7 @@ end
     k::Float64 # repulsion force constant 
     mass::Float64
 end
-Particle(id, pos, vel) = Particle(id, ntuple(i -> pos[i], 2), ntuple(i -> vel[i], 2), 1.0, 1.0, 1.0)
+Particle(id, pos, vel) = Particle(id, ntuple(i -> pos[i], 2), ntuple(i -> vel[i], 2), 1.0, 1.0, 100.0)
 
 Base.@kwdef struct Properties{T,CL}
     dt::Float64 = 0.01
@@ -33,7 +33,7 @@ function initialize_model(;
 )
     # initial positions and velocities
     positions = rand(SVector{2,Float64}, n)
-    velocities = 1e-3 .* rand(SVector{2,Float64}, n)
+    velocities = -1e-6 .+ 1.e-6 * rand(SVector{2,Float64}, n)
 
     # Space and agents
     space2d = ContinuousSpace(ntuple(i -> sides[i], 2); periodic=true)
