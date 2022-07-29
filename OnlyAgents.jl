@@ -110,8 +110,8 @@ function model_step!(model::ABM)
     return
 end
 
-function simulate(; model=nothing, nsteps=1_000)
-    isnothing(model) && (model = initialize_model())
+function simulate(; model=nothing, nsteps=1_000, n=10_000)
+    isnothing(model) && (model = initialize_model(n=n))
     Agents.step!(
         model, agent_step!, model_step!, nsteps, false,
     )

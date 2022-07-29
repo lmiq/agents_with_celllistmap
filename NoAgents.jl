@@ -137,8 +137,8 @@ function step!(system::System)
     end
 end
 
-function simulate(; system=nothing, nsteps=1_000)
-    isnothing(system) && (system = initialize_system())
+function simulate(; system=nothing, nsteps=1_000, n=10_000)
+    isnothing(system) && (system = initialize_system(n=n))
     for _ in 1:nsteps
         step!(system)
     end
