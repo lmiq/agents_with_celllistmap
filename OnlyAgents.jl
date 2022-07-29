@@ -14,35 +14,39 @@ Base.@kwdef struct Properties{T}
     forces::Vector{NTuple{2,T}}
     cutoff::Float64
 end
-Particle(id, pos, vel) = Particle(id, pos, vel, 10.0, 1.0, 1.0)
-
+Particle(; id, pos, vel, r, k, mass) = Particle(id, pos, vel, r, k, mass)
 
 function initialize_model(;
-    n=1000,
+    n=10_000,
     sides=(1000.0, 1000.0),
     dt=0.01
 )
-    # initial positions and velocities
-    positions = [sides .* (rand(), rand()) for _ in 1:n]
-    velocities = [-50 .+ 100 .* (rand(), rand()) for _ in 1:n]
 
-    # Space and agents
+    # maximum radius is 10.0, so cutoff is 20.0
+    cutoff = 20.0
+
+    # Space
     space2d = ContinuousSpace(sides; periodic=true)
-    particles = [Particle(id, positions[id], velocities[id]) for id in 1:n]
 
     # initialize vector of forces
     forces = [(0.0, 0.0) for _ in 1:n]
-
-    # cutoff is twice the maximum radius among particles
-    cutoff = maximum(2 * p.r for p in particles)
 
     # define the model
     properties = Properties(; dt, n, forces, cutoff)
     model = ABM(Particle, space2d; properties)
 
-    # create active rods
+    # create active agents
     for id in 1:n
-        add_agent_pos!(particles[id], model)
+        add_agent_pos!(
+            Particle(
+                id=id,
+                r=1.0 + 9 * rand(),
+                k=1.0 + rand(),
+                mass=10.0 + 10 * rand(),
+                pos=(sides[1] * rand(), sides[2] * rand()),
+                vel=(-50 + 100 * rand(), -50 + 100 * rand()),
+            ),
+            model)
     end
 
     return model
@@ -88,7 +92,7 @@ function calc_forces!(forces, model, pairs)
             ki = ai.k
             kj = aj.k
             dr = @. y - x
-            fij = @. 2 * (ki * kj) * (d2 - (ri + rj)^2) * (dr/d)
+            fij = @. 2 * (ki * kj) * (d2 - (ri + rj)^2) * (dr / d)
             forces[i] = forces[i] .+ fij
             forces[j] = forces[j] .- fij
         end
@@ -106,13 +110,8 @@ function model_step!(model::ABM)
     return
 end
 
-function simulate(; nsteps=1_000)
-    model = initialize_model()
-    Agents.step!(
-        model, agent_step!, model_step!, nsteps, false,
-    )
-end
-function simulate(model = initialize_model(); nsteps=1_000)
+function simulate(; model=nothing, nsteps=1_000)
+    isnothing(model) && (model = initialize_model())
     Agents.step!(
         model, agent_step!, model_step!, nsteps, false,
     )

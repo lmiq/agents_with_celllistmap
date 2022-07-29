@@ -34,7 +34,7 @@ function initialize_model(;
     n=10_000,
     sides=SVector{2,Float64}(1000.0, 1000.0),
     dt=0.01,
-    parallel=true,
+    parallel=true
 )
     # initial positions and velocities
     positions = [sides .* rand(SVector{2,Float64}) for _ in 1:n]
@@ -59,8 +59,8 @@ function initialize_model(;
     # initialize array of forces
     forces = zeros(SVector{2,Float64}, n)
 
-    # cutoff is twice the maximum radius among particles
-    cutoff = maximum(2 * p.r for p in particles)
+    # maximum radius is 10.0 thus cutoff is 20.0
+    cutoff = 20.0
 
     # Define cell list structure
     box = CellListMap.Box(sides, cutoff)
@@ -165,7 +165,8 @@ function model_step!(model::ABM)
     return
 end
 
-function simulate(;model=initialize_model(), nsteps=1_000)
+function simulate(; model=nothing, nsteps=1_000)
+    isnothing(model) && (model = initialize_model())
     Agents.step!(
         model, agent_step!, model_step!, nsteps, false,
     )

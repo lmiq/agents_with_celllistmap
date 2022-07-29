@@ -18,7 +18,7 @@ end
 
 Base.@kwdef struct System{T,CL}
     dt::Float64 = 0.01
-    n::Int64 = 10_000 
+    n::Int64 = 10_000
     particles::Vector{Particle}
     positions::Vector{SVector{2,T}}
     velocities::Vector{SVector{2,T}}
@@ -32,7 +32,7 @@ function initialize_system(;
     n=10_000,
     sides=SVector{2,Float64}(1000.0, 1000.0),
     dt=0.01,
-    parallel=true,
+    parallel=true
 )
     # initial positions and velocities
     positions = [sides .* rand(SVector{2,Float64}) for _ in 1:n]
@@ -41,15 +41,14 @@ function initialize_system(;
     # Each particle has a different radius, repulsion constant, and mass
     particles = [
         Particle(
-            r=1.0 + 10 * rand(),
+            r=1.0 + 9 * rand(),
             k=1.0 + rand(),
             mass=10.0 + 10 * rand()
         )
         for id in 1:n]
 
-    # cutoff above which all interactions are zero is 
-    # twice the maximum radius among particles
-    cutoff = maximum(2 * p.r for p in particles)
+    # maximum radius is 10.0, so cutoff is 20.0 
+    cutoff = 20.0
 
     # initialize array of forces
     forces = zeros(SVector{2,Float64}, n)
@@ -109,12 +108,12 @@ function step!(system::System)
         system.clmap.box,
         system.clmap.cell_list,
         system.clmap.aux;
-        parallel=system.parallel,
+        parallel=system.parallel
     )
     # reset forces at this step, and auxiliary threaded forces array
     fill!(system.forces, zeros(eltype(system.forces)))
     for i in eachindex(system.clmap.output_threaded)
-        fill!(system.clmap.output_threaded[i], zeros(eltype(system.forces))) 
+        fill!(system.clmap.output_threaded[i], zeros(eltype(system.forces)))
     end
     # calculate pairwise forces at this step
     CellListMap.map_pairwise!(
@@ -123,7 +122,7 @@ function step!(system::System)
         system.clmap.box,
         system.clmap.cell_list;
         output_threaded=system.clmap.output_threaded,
-        parallel=system.parallel,
+        parallel=system.parallel
     )
     # Update positions and velocities
     dt = system.dt
@@ -138,7 +137,8 @@ function step!(system::System)
     end
 end
 
-function simulate(;system=initialize_system(), nsteps=1_000)
+function simulate(; system=nothing, nsteps=1_000)
+    isnothing(system) && (system = initialize_system())
     for _ in 1:nsteps
         step!(system)
     end
