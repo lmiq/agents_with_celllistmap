@@ -50,7 +50,6 @@ and contains auxiliary arrays to paralellize the construction of the cell lists.
 for parallelization.
 
 """
-# Structure that contains the data to use CellListMap
 mutable struct CellListMapData{B,C,A,O}
     box::B
     cell_list::C
