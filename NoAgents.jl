@@ -3,14 +3,20 @@ module NoAgents
 using StaticArrays
 import CellListMap
 
-struct Particle
+Base.@kwdef struct Particle
     r::Float64 # radius
     k::Float64 # repulsion force constant
     mass::Float64
 end
-Particle() = Particle(10.0, 1.0, 1.0)
 
-Base.@kwdef mutable struct System{T,B,C}
+mutable struct CellListMapData{B,C,A,O}
+    box::B
+    cell_list::C
+    aux::A
+    output_threaded::O
+end
+
+Base.@kwdef struct System{T,CL}
     dt::Float64 = 0.01
     n::Int64 = 0
     particles::Vector{Particle}
@@ -18,44 +24,54 @@ Base.@kwdef mutable struct System{T,B,C}
     velocities::Vector{SVector{2,T}}
     forces::Vector{SVector{2,T}}
     cutoff::Float64
-    box::B
-    cell_list::C
-    parallel::Bool = false
+    clmap::CL # CellListMap auxiliary data
+    parallel::Bool
 end
 
 function initialize_system(;
     n=1000,
     sides=SVector{2,Float64}(1000.0, 1000.0),
     dt=0.01,
-    parallel=false
+    parallel=true,
 )
     # initial positions and velocities
     positions = [sides .* rand(SVector{2,Float64}) for _ in 1:n]
     velocities = [-50 .+ 100 .* rand(SVector{2,Float64}) for _ in 1:n]
-    particles = [Particle() for id in 1:n]
+
+    # Each particle has a different radius, repulsion constant, and mass
+    particles = [
+        Particle(
+            r=1.0 + 10 * rand(),
+            k=1.0 + rand(),
+            mass=10.0 + 10 * rand()
+        )
+        for id in 1:n]
+
+    # cutoff above which all interactions are zero is 
+    # twice the maximum radius among particles
+    cutoff = maximum(2 * p.r for p in particles)
 
     # initialize array of forces
     forces = zeros(SVector{2,Float64}, n)
 
-    # cutoff is twice the maximum radius among particles
-    cutoff = maximum(2 * p.r for p in particles)
-
-    # Define cell list structure
+    # Define cell list structures needed
     box = CellListMap.Box(sides, cutoff)
-    cl = CellListMap.CellList(positions, box; parallel=parallel)
+    cl = CellListMap.CellList(positions, box, parallel=parallel)
+    aux = CellListMap.AuxThreaded(cl)
+    output_threaded = [copy(forces) for _ in 1:CellListMap.nbatches(cl)]
+    clmap = CellListMapData(box, cl, aux, output_threaded)
 
     # define the model
     system = System(
         dt=dt,
         n=n,
-        cutoff=cutoff,
         particles=particles,
         positions=positions,
         velocities=velocities,
         forces=forces,
-        box=box,
-        cell_list=cl,
-        parallel=parallel
+        cutoff=cutoff,
+        clmap=clmap,
+        parallel=parallel,
     )
 
     return system
@@ -88,21 +104,26 @@ end
 
 function step!(system::System)
     # update cell lists
-    system.cell_list = CellListMap.UpdateCellList!(
+    system.clmap.cell_list = CellListMap.UpdateCellList!(
         system.positions, # current positions
-        system.box,
-        system.cell_list;
-        parallel=system.parallel
+        system.clmap.box,
+        system.clmap.cell_list,
+        system.clmap.aux;
+        parallel=system.parallel,
     )
     # reset forces at this step, and auxiliary threaded forces array
     fill!(system.forces, zeros(eltype(system.forces)))
+    for i in eachindex(system.clmap.output_threaded)
+        fill!(system.clmap.output_threaded[i], zeros(eltype(system.forces))) 
+    end
     # calculate pairwise forces at this step
     CellListMap.map_pairwise!(
         (x, y, i, j, d2, forces) -> calc_forces!(x, y, i, j, d2, forces, system),
         system.forces,
-        system.box,
-        system.cell_list;
-        parallel=system.parallel
+        system.clmap.box,
+        system.clmap.cell_list;
+        output_threaded=system.clmap.output_threaded,
+        parallel=system.parallel,
     )
     # Update positions and velocities
     dt = system.dt
@@ -117,15 +138,7 @@ function step!(system::System)
     end
 end
 
-function simulate(; n=1000, nsteps=1_000, parallel=false)
-    system = initialize_system(n=n, parallel=parallel)
-    for _ in 1:nsteps
-        step!(system)
-    end
-    return system
-end
-
-function simulate(system = initialize_system(n=1000, parallel=false); nsteps=1_000)
+function simulate(system=initialize_system(n=1000); nsteps=1_000)
     for _ in 1:nsteps
         step!(system)
     end
