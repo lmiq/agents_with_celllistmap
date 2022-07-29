@@ -55,9 +55,16 @@ println(" nsteps = $nsteps ")
 println("-------------------------")
 compare(n, nsteps)
 
-
 n = 10_000
 nsteps = 50
+println("-------------------------")
+println(" n = $n ")
+println(" nsteps = $nsteps ")
+println("-------------------------")
+compare(n, nsteps)
+
+n = 100_000
+nsteps = 1
 println("-------------------------")
 println(" n = $n ")
 println(" nsteps = $nsteps ")
