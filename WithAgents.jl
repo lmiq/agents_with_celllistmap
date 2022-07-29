@@ -4,18 +4,20 @@ using Agents
 using StaticArrays
 import CellListMap
 
-# Structure that contains the data to use cell list map (serial version)
-mutable struct CellListMapData{B,C}
-    box::B
-    cell_list::C
-end
-
 @agent Particle ContinuousAgent{2} begin
     r::Float64 # radius
     k::Float64 # repulsion force constant
     mass::Float64
 end
-Particle(id, pos, vel) = Particle(id, Tuple(pos), Tuple(vel), 10.0, 1.0, 1.0)
+Particle(; id, pos, vel, r, k, mass) = Particle(id, pos, vel, r, k, mass)
+
+# Structure that contains the data to use CellListMap
+mutable struct CellListMapData{B,C,A,O}
+    box::B
+    cell_list::C
+    aux::A
+    output_threaded::O
+end
 
 Base.@kwdef struct Properties{T,CL}
     dt::Float64 = 0.01
@@ -24,21 +26,35 @@ Base.@kwdef struct Properties{T,CL}
     velocities::Vector{SVector{2,T}}
     forces::Vector{SVector{2,T}}
     cutoff::Float64
-    cl_data::CL
+    clmap::CL # CellListMap data
+    parallel::Bool
 end
 
 function initialize_model(;
-    n=1000,
+    n=10_000,
     sides=SVector{2,Float64}(1000.0, 1000.0),
-    dt=0.01
+    dt=0.01,
+    parallel=true,
 )
     # initial positions and velocities
     positions = [sides .* rand(SVector{2,Float64}) for _ in 1:n]
     velocities = [-50 .+ 100 .* rand(SVector{2,Float64}) for _ in 1:n]
 
     # Space and agents
-    space2d = ContinuousSpace(ntuple(i -> sides[i], 2); periodic=true)
-    particles = [Particle(id, positions[id], velocities[id]) for id in 1:n]
+    space2d = ContinuousSpace(Tuple(sides); periodic=true)
+
+    # Each particle has a different radius, repulsion constant, and mass
+    particles = [
+        Particle(
+            id=id,
+            r=1.0 + 10 * rand(),
+            k=1.0 + rand(),
+            mass=10.0 + 10 * rand(),
+            pos=Tuple(positions[id]),
+            vel=Tuple(velocities[id]),
+        )
+        for id in 1:n]
+
 
     # initialize array of forces
     forces = zeros(SVector{2,Float64}, n)
@@ -48,8 +64,10 @@ function initialize_model(;
 
     # Define cell list structure
     box = CellListMap.Box(sides, cutoff)
-    cl = CellListMap.CellList(positions, box; parallel=false)
-    cl_data = CellListMapData(box, cl)
+    cl = CellListMap.CellList(positions, box; parallel=parallel)
+    aux = CellListMap.AuxThreaded(cl)
+    output_threaded = [copy(forces) for _ in 1:CellListMap.nbatches(cl)]
+    clmap = CellListMapData(box, cl, aux, output_threaded)
 
     # define the model
     properties = Properties(
@@ -59,7 +77,8 @@ function initialize_model(;
         positions=positions,
         velocities=velocities,
         forces=forces,
-        cl_data=cl_data
+        clmap=clmap,
+        parallel=parallel,
     )
     model = ABM(Particle,
         space2d,
@@ -111,7 +130,7 @@ function calc_forces!(x, y, i, j, d2, forces, model)
         ki = model.agents[i].k
         kj = model.agents[j].k
         dr = y - x
-        fij = 2 * (ki * kj) * (d2 - (ri + rj)^2) * (dr/d)
+        fij = 2 * (ki * kj) * (d2 - (ri + rj)^2) * (dr / d)
         forces[i] += fij
         forces[j] -= fij
     end
@@ -122,32 +141,31 @@ end
 # should it do something else?
 function model_step!(model::ABM)
     # update cell lists
-    model.cl_data.cell_list = CellListMap.UpdateCellList!(
+    model.clmap.cell_list = CellListMap.UpdateCellList!(
         model.positions, # current positions
-        model.cl_data.box,
-        model.cl_data.cell_list;
-        parallel=false
+        model.clmap.box,
+        model.clmap.cell_list,
+        model.clmap.aux;
+        parallel=model.parallel
     )
     # reset forces at this step, and auxiliary threaded forces array
     fill!(model.forces, zeros(eltype(model.forces)))
+    for i in eachindex(model.clmap.output_threaded)
+        fill!(model.clmap.output_threaded[i], zeros(eltype(model.forces)))
+    end
     # calculate pairwise forces at this step
     CellListMap.map_pairwise!(
         (x, y, i, j, d2, forces) -> calc_forces!(x, y, i, j, d2, forces, model),
         model.forces,
-        model.cl_data.box,
-        model.cl_data.cell_list;
-        parallel=false
+        model.clmap.box,
+        model.clmap.cell_list;
+        output_threaded=model.clmap.output_threaded,
+        parallel=model.parallel
     )
     return
 end
 
-function simulate(; nsteps=1_000)
-    model = initialize_model()
-    Agents.step!(
-        model, agent_step!, model_step!, nsteps, false,
-    )
-end
-function simulate(model = initialize_model(); nsteps=1_000)
+function simulate(;model=initialize_model(), nsteps=1_000)
     Agents.step!(
         model, agent_step!, model_step!, nsteps, false,
     )

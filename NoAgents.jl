@@ -18,7 +18,7 @@ end
 
 Base.@kwdef struct System{T,CL}
     dt::Float64 = 0.01
-    n::Int64 = 0
+    n::Int64 = 10_000 
     particles::Vector{Particle}
     positions::Vector{SVector{2,T}}
     velocities::Vector{SVector{2,T}}
@@ -29,7 +29,7 @@ Base.@kwdef struct System{T,CL}
 end
 
 function initialize_system(;
-    n=1000,
+    n=10_000,
     sides=SVector{2,Float64}(1000.0, 1000.0),
     dt=0.01,
     parallel=true,
@@ -138,7 +138,7 @@ function step!(system::System)
     end
 end
 
-function simulate(system=initialize_system(n=1000); nsteps=1_000)
+function simulate(;system=initialize_system(), nsteps=1_000)
     for _ in 1:nsteps
         step!(system)
     end
