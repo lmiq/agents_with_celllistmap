@@ -129,9 +129,9 @@ end
 #
 function initialize_model(;
     number_of_particles=10_000,
-    sides=SVector(1000.0, 1000.0),
-    dt=0.01,
-    max_radius=20.0,
+    sides=SVector(500.0, 500.0),
+    dt=0.001,
+    max_radius=10.0,
     parallel=true,
 )
     ## initial random positions
@@ -143,7 +143,7 @@ function initialize_model(;
     ## initialize array of forces
     forces = zeros(SVector{2,Float64}, number_of_particles)
 
-    ## maximum radius is 10.0 thus cutoff is 20.0
+    ## default maximum radius is 10.0 thus cutoff is 20.0
     cutoff = 2*max_radius
 
     ## Define cell list structure
@@ -172,12 +172,11 @@ function initialize_model(;
         add_agent_pos!(
             Particle(
                 id=id,
-                #r=1.0 + (max_radius - 0.2*max_radius) * rand(), # random radii
-                r = max_radius,
-                k=100*rand(), # random force constants
-                mass=10.0 + 10 * rand(), # random masses
+                r = (0.1 + 0.9*rand())*max_radius,
+                k=1.0 + 10*rand(), # random force constants
+                mass=10.0 + 100*rand(), # random masses
                 pos=Tuple(positions[id]),
-                vel=(10*randn(), 10*rand()), # initial velocities
+                vel=(100*randn(), 100*randn()), # initial velocities
             ),
         model)
     end
@@ -273,8 +272,9 @@ function agent_step!(agent, model::ABM)
     x_new = x + v * dt + (a / 2) * dt^2
     v_new = v + f * dt
     model.clmap.positions[id] = x_new
-    agent.pos = Tuple(x_new)
     agent.vel = Tuple(v_new)
+    x_new = normalize_position(Tuple(x_new), model)
+    move_agent!(agent, x_new, model)
     return nothing
 end
 
@@ -298,16 +298,20 @@ end
 @time simulate()
 #
 # and let's make a nice video with less particles, 
-# to see them bouncing around:
+# to see them bouncing around. The marker size is set by the 
+# radius of each particle, and the marker color by the
+# corresponding repulsion constant.
 #
 using InteractiveDynamics
 using CairoMakie
 CairoMakie.activate!() # hide
-model = initialize_model(number_of_particles=1000, sides=SVector(100.0,100.0))
+model = initialize_model(number_of_particles=1000)
 abmvideo(
-    "celllistmap.mp4", model, agent_step!;
-    framerate = 50, frames = 200,
-    title = "Bouncing particles"
+    "celllistmap.mp4", model, agent_step!, model_step!;
+    framerate = 20, frames = 200, spf=5,
+    title = "Bouncing particles",
+    as = p -> p.r, # marker size
+    ac = p -> p.k, # marker size
 )
 #
 # The final video is shown at the top of this page.
