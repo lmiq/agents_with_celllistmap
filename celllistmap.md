@@ -140,8 +140,8 @@ initial velocities and force constants will also be generated.
 ````@example celllistmap
 function initialize_model(;
     number_of_particles=10_000,
-    sides=SVector{2,Float64}(1000.0, 1000.0),
-    dt=0.01,
+    sides=SVector(500.0, 500.0),
+    dt=0.001,
     max_radius=10.0,
     parallel=true,
 )
@@ -154,7 +154,7 @@ function initialize_model(;
     # initialize array of forces
     forces = zeros(SVector{2,Float64}, number_of_particles)
 
-    # maximum radius is 10.0 thus cutoff is 20.0
+    # default maximum radius is 10.0 thus cutoff is 20.0
     cutoff = 2*max_radius
 
     # Define cell list structure
@@ -183,11 +183,11 @@ function initialize_model(;
         add_agent_pos!(
             Particle(
                 id=id,
-                r=1.0 + (max_radius - 1.0) * rand(), # random radii
-                k=1.0 + rand(), # random force constants
-                mass=10.0 + 10 * rand(), # random masses
+                r = (0.1 + 0.9*rand())*max_radius,
+                k=1.0 + 10*rand(), # random force constants
+                mass=10.0 + 100*rand(), # random masses
                 pos=Tuple(positions[id]),
-                vel=(100*randn(), 100*rand()), # initial velocities
+                vel=(100*randn(), 100*randn()), # initial velocities
             ),
         model)
     end
@@ -243,7 +243,7 @@ the `model` data to call the `calc_forces!` function defined above.
 function model_step!(model::ABM)
     # update cell lists
     model.clmap.cell_list = CellListMap.UpdateCellList!(
-        model.positions, # current positions
+        model.clmap.positions, # current positions
         model.clmap.box,
         model.clmap.cell_list,
         model.clmap.aux;
@@ -285,9 +285,10 @@ function agent_step!(agent, model::ABM)
     a = f / agent.mass
     x_new = x + v * dt + (a / 2) * dt^2
     v_new = v + f * dt
-    model.positions[id] = x_new
-    agent.pos = Tuple(x_new)
+    model.clmap.positions[id] = x_new
     agent.vel = Tuple(v_new)
+    x_new = normalize_position(Tuple(x_new), model)
+    move_agent!(agent, x_new, model)
     return nothing
 end
 ````
@@ -307,23 +308,33 @@ function simulate(; model=nothing, nsteps=1_000, number_of_particles=10_000)
 end
 ````
 
-Which should be quite fast:
+Which should be quite fast. Compilation time should be irrelevant
+for longer runs:
 
 ````@example celllistmap
 @time simulate()
 ````
 
 and let's make a nice video with less particles,
-to see them bouncing around:
+to see them bouncing around. The marker size is set by the
+radius of each particle, and the marker color by the
+corresponding repulsion constant.
 
 ````@example celllistmap
+using InteractiveDynamics
+using CairoMakie
+CairoMakie.activate!() # hide
 model = initialize_model(number_of_particles=1000)
 abmvideo(
-    "celllistmap.mp4", model, agent_step!;
-    framerate = 20, frames = 100,
-    title = "Bouncing particles"
+    "celllistmap.mp4", model, agent_step!, model_step!;
+    framerate = 20, frames = 200, spf=5,
+    title = "Bouncing particles",
+    as = p -> p.r, # marker size
+    ac = p -> p.k, # marker size
 )
 ````
+
+The final video is shown at the top of this page.
 
 ---
 
